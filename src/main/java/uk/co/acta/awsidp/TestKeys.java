@@ -10,8 +10,11 @@ import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator;
 import com.nimbusds.jose.shaded.gson.Gson;
 import com.nimbusds.jose.shaded.gson.GsonBuilder;
 
+import com.nimbusds.jose.util.Base64URL;
+import org.joda.time.DateTime;
 import uk.co.acta.awsidp.models.Key;
 import uk.co.acta.awsidp.models.Keys;
+
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
@@ -38,85 +41,75 @@ public class TestKeys implements RequestHandler<Object, String> {
         SecureRandom secureRandom = new SecureRandom(seed);
         System.out.println("Curve.Ed25519.getName() = " + Curve.Ed25519.getName());
 
-        //KeyPairGenerator g = KeyPairGenerator.getInstance("EC","SunEC");
-        KeyPairGenerator g = KeyPairGenerator.getInstance(curveName,"SunEC");
-        System.out.println(g.getProvider());
-        System.out.println(g.getAlgorithm());
-        ECGenParameterSpec ecsp = new ECGenParameterSpec(curveName);
-        g.initialize(ecsp, secureRandom);
-
-
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance(curveName);
-        kpg.initialize(new ECGenParameterSpec(curveName));
-        KeyPair kp = kpg.generateKeyPair();
-
-        EdECPublicKey publicKey = (EdECPublicKey) kp.getPublic();
-        EdECPrivateKey privateKey = (EdECPrivateKey) kp.getPrivate();
-        System.out.println("Encoding format: " + publicKey.getFormat());
-        byte[] derEncoded = publicKey.getEncoded();
-// base64 encoded is what you get for PEM, between the header and footer lines
-        String base64DEREncoded = Base64.getEncoder().encodeToString(derEncoded);
-        System.out.println("Base64 SubjectPublicKeyInfo: " + base64DEREncoded);
-
-
-        System.out.println("Generated key pair " + kp.getClass());
-
-        System.out.println("kp.getPublic().getAlgorithm() = " + kp.getPublic().getAlgorithm());
-        System.out.println("got public key");
-
-/*
-	public ECKey(final Curve crv, final ECPublicKey pub, final PrivateKey priv,
-		     final KeyUse use, final Set<KeyOperation> ops, final Algorithm alg, final String kid,
-		     final URI x5u, final Base64URL x5t, final Base64URL x5t256, final List<Base64> x5c,
-		     final Date exp, final Date nbf, final Date iat,
-		     final KeyStore ks) {
-
- */
-        Set<KeyOperation> ops = new HashSet<>(Arrays.asList(KeyOperation.SIGN, KeyOperation.VERIFY));
-        String kid = "1111";
-
-
-
-  /*      // Generate EC key pair with P-256 curve
-      KeyPairGenerator gen = KeyPairGenerator.getInstance("EC");
-        gen.initialize(Curve.P_256.toECParameterSpec());
-        KeyPair keyPair = gen.generateKeyPair();
-*/
-// Convert to JWK format
-
-//        ECGenParameterSpec ecsp = new ECGenParameterSpec(curveName);
-  //      g.initialize(ecsp, secureRandom);
-
-
-
+        DateTime issuedAt = new DateTime();
+        DateTime expiryTime = new DateTime();
+        expiryTime = expiryTime.plusMinutes(5);
+        String kid = UUID.randomUUID().toString();
         OctetKeyPair jwk = new OctetKeyPairGenerator(Curve.Ed25519)
                 .secureRandom(secureRandom)
                 .keyUse(KeyUse.SIGNATURE) // indicate the intended use of the key (optional)
-                .keyID(UUID.randomUUID().toString()) // give the key a unique ID (optional)
-                .issueTime(new Date()) // issued-at timestamp (optional)
+                .keyID(kid) // give the key a unique ID (optional)
+                .issueTime(issuedAt.toDate()) // issued-at timestamp (optional)
+                .expirationTime(expiryTime.toDate())
                 .generate();
 
-
         System.out.println("got jwk");
-        System.out.println(jwk.getKeyID());
+
+        Base64URL x = jwk.getX();
+        Base64URL d = jwk.getD();
+
+        System.out.println("x = " + x.toJSONString());
+        System.out.println("d = " + d.toJSONString());
 
 
+        /*
 
-        //ECKey ecKey = new ECKey(Curve.Ed25519, publicKey, kp.getPrivate(), KeyUse.SIGNATURE, ops, Algorithm.parse(publicKey.getAlgorithm()), kid);
+crv – The cryptographic curve. Must not be null.
+x – The public 'x' parameter. Must not be null.
+d – The private 'd' parameter. Must not be null.
+use – The key use, null if not specified or if the key is intended for signing as well as encryption.
+ops – The key operations, null if not specified.
+alg – The intended JOSE algorithm for the key, null if not specified.
+kid – The key ID, null if not specified.
+x5u – The X.509 certificate URL, null if not specified.
+x5t – The X.509 certificate SHA-1 thumbprint, null if not specified.
+x5t256 – The X.509 certificate SHA-256 thumbprint, null if not specified.
+x5c – The X.509 certificate chain, null if not specified.
+exp – The key expiration time, null if not specified.
+nbf – The key not-before time, null if not specified.
+iat – The key issued-at time, null if not specified.
+ ks – Reference to the underlying key store, null if not specified.
 
-        //ECKey jwk = new ECKey.Builder(ecKey).build();
+OctetKeyPair(final Curve crv, final Base64URL x,
+			    final KeyUse use, final Set<KeyOperation> ops, final Algorithm alg, final String kid,
+			    final URI x5u, final Base64URL x5t, final Base64URL x5t256, final List<Base64> x5c,
+			    final Date exp, final Date nbf, final Date iat,
+			    final KeyStore ks)
+
+*/
+        Set<KeyOperation> ops = new HashSet<>(Arrays.asList(KeyOperation.SIGN, KeyOperation.VERIFY));
+
+        OctetKeyPair jwk2 = new OctetKeyPair(Curve.Ed25519, x, d,
+                KeyUse.SIGNATURE, null, null, kid,
+                null, null, null, null,
+                expiryTime.toDate(), null, issuedAt.toDate(), null
+        );
 
 
+        System.out.println("got jwk2");
 
-        Key key = new Key();
-        key.setUse("sig");
-        key.setAlg(kp.getPublic().getAlgorithm());
-        key.setX(Base64.getEncoder().encodeToString(kp.getPublic().getEncoded()));
+        // Output the private and public OKP JWK parameters
+        //System.out.println("JWK " + jwk);
 
-        key.setCrv(curveName);
-        key.setKty("OKP");
+        // Output the public OKP JWK parameters only
+        System.out.println("Public JWK " + jwk.toPublicJWK());
+        System.out.println("Public JWK2 " + jwk2.toPublicJWK());
 
-        keys.addKey(key);
+        Key k = new Key(jwk);
+        Key k2 = new Key(jwk2);
+
+        keys.addKey(k);
+        keys.addKey(k2);
         String json = tk.gson.toJson(keys);
         System.out.println(json);
     }

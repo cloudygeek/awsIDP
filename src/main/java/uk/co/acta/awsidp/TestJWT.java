@@ -87,7 +87,7 @@ public class TestJWT {
         Date now = new Date();
 
         DateTime dateTime = new DateTime();
-        dateTime.plusMinutes(5);
+        dateTime = dateTime.plusMinutes(5);
 
 
             String jwtToken = Jwts.builder()
