@@ -8,7 +8,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>11</maven.compiler.release>
+    <maven.compiler.release>16</maven.compiler.release>
     <aws.java.sdk.version>2.19.33</aws.java.sdk.version>
   </properties>
 
@@ -25,6 +25,12 @@
   </dependencyManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
@@ -50,6 +56,30 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>kms</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>nimbus-jose-jwt</artifactId>
+      <version>9.30.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink</artifactId>
+      <version>1.7.0</version>
+    </dependency>
+
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-lambda-java-core</artifactId>
+      <version>1.2.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-lambda-java-events</artifactId>
+      <version>3.11.0</version>
     </dependency>
 
 
@@ -157,7 +187,9 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <release>11</release>
+          <release>16</release>
+          <source>16</source>
+          <target>16</target>
         </configuration>
       </plugin>
     </plugins>
