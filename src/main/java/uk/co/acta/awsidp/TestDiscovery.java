@@ -43,7 +43,6 @@ public class TestDiscovery implements RequestHandler<Object, String>{
         logger.log("JSON = "  + json);
 
 
-
         return json;
     }
 }

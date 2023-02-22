@@ -8,7 +8,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>16</maven.compiler.release>
+    <maven.compiler.release>11</maven.compiler.release>
     <aws.java.sdk.version>2.19.33</aws.java.sdk.version>
   </properties>
 
@@ -187,9 +187,9 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <release>16</release>
-          <source>16</source>
-          <target>16</target>
+          <release>11</release>
+          <source>11</source>
+          <target>11</target>
         </configuration>
       </plugin>
     </plugins>

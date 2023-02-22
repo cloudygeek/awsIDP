@@ -1,5 +1,8 @@
 package uk.co.acta.awsidp;
 
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.KeyUse;
@@ -26,7 +29,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.UUID;
 
-public class RotateKeys {
+public class RotateKeys  implements RequestHandler<Object, String> {
 
     private static DynamoDbClient ddb;
 
@@ -58,6 +61,17 @@ public class RotateKeys {
         }
     }
 
+    @Override
+    public String handleRequest(Object event, Context context) {
+        LambdaLogger logger = context.getLogger();
+        Logger.setLogger(logger);
+        OctetKeyPair jwk = rotateKeys();
+        if (jwk!=null) {
+            storeKey(jwk);
+        }
+        return "OK";
+    }
+
     private static OctetKeyPair rotateKeys() {
         try {
             GenerateRandomRequest request = GenerateRandomRequest.builder().numberOfBytes(512).build();
@@ -73,7 +87,7 @@ public class RotateKeys {
 
             DateTime issuedAt = new DateTime();
             DateTime expiryTime = new DateTime();
-            expiryTime = expiryTime.plusHours(8);
+            expiryTime = expiryTime.plusHours(96);
             String kid = UUID.randomUUID().toString();
             OctetKeyPair jwk = new OctetKeyPairGenerator(Curve.Ed25519)
                     .secureRandom(secureRandom)
@@ -111,8 +125,8 @@ public class RotateKeys {
             itemValues.put("exp", AttributeValue.builder().n("" + key.getExpirationTime().getTime()).build());
 
             Calendar expiry = Calendar.getInstance();
-            expiry.add(Calendar.MONTH, 1);
-            itemValues.put("expireRecord", AttributeValue.builder().n("" + expiry.getTime().getTime()).build());
+            expiry.add(Calendar.DAY_OF_YEAR, 7);
+            itemValues.put("expireRecord", AttributeValue.builder().n("" + expiry.getTime().getTime()/1000).build());
 
             PutItemRequest request = PutItemRequest.builder()
                     .tableName(tableName)
