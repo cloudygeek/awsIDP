@@ -1,46 +1,43 @@
 package uk.co.acta.awsidp;
 
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.jwk.Curve;
-import com.nimbusds.jose.jwk.KeyUse;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.nimbusds.jose.jwk.OctetKeyPair;
-import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator;
-import org.joda.time.DateTime;
+import com.nimbusds.jose.shaded.gson.Gson;
+import com.nimbusds.jose.shaded.gson.GsonBuilder;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
-import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.GenerateRandomRequest;
-import software.amazon.awssdk.services.kms.model.GenerateRandomResponse;
+import uk.co.acta.awsidp.models.Key;
+import uk.co.acta.awsidp.models.Keys;
 import uk.co.acta.awsidp.util.Logger;
 
-import java.security.SecureRandom;
 import java.util.*;
 
-public class LoadKeys {
+public class KeyInterface implements RequestHandler<Object, String> {
 
+    Gson gson = new GsonBuilder().create();
     private static DynamoDbClient ddb;
 
     private static final String tableName = "idpKeys";
 
     private static void setup() {
 
+        if (ddb != null) return;
+
         if (Logger.isLamba()) {
-            if (ddb == null) {
-                ddb = DynamoDbClient.builder()
-                        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
-                        .region(Region.EU_WEST_2)
-                        .build();
-            }
+            ddb = DynamoDbClient.builder()
+                    .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
+                    .region(Region.EU_WEST_2)
+                    .build();
         } else {
-            if (ddb == null) {
-                ddb = DynamoDbClient.builder()
-                        .credentialsProvider(ProfileCredentialsProvider.create("default"))
-                        .region(Region.EU_WEST_2)
-                        .build();
-            }
+            ddb = DynamoDbClient.builder()
+                    .credentialsProvider(ProfileCredentialsProvider.create("default"))
+                    .region(Region.EU_WEST_2)
+                    .build();
         }
     }
 
@@ -51,6 +48,23 @@ public class LoadKeys {
 
     //OctetKeyPair.parse(jwk.toJSONString());
 
+    @Override
+    public String handleRequest(Object event, Context context) {
+        LambdaLogger logger = context.getLogger();
+        Logger.setLogger(logger);
+
+        List<OctetKeyPair> jwkKeys = getKeys();
+        Keys keys = new Keys();
+        for (OctetKeyPair jwkKey : jwkKeys) {
+            keys.addKey(new Key(jwkKey));
+        }
+
+        String json = gson.toJson(keys);
+        logger.log("JSON = " + json);
+
+        return json;
+
+    }
     private static List<OctetKeyPair> getKeys() {
         setup();
 
@@ -66,7 +80,7 @@ public class LoadKeys {
             Logger.log("Received " + response.count() + " keys");
             for (Map<String, AttributeValue> dynKey : response.items()) {
                 String exp = dynKey.get("exp").n();
-                if (Long.parseLong(exp) < System.currentTimeMillis()){
+                if (Long.parseLong(exp) < System.currentTimeMillis()) {
                     Logger.log(dynKey.get("kid") + " key is expired " + exp);
                     continue;
                 }
